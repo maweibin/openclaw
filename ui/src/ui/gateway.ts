@@ -133,6 +133,8 @@ export class GatewayBrowserClient {
       const connectError = this.pendingConnectError;
       this.pendingConnectError = undefined;
       this.ws = null;
+      // Reset sequence so after auto-reconnect we don't treat the new stream as a gap (fixes #32628).
+      this.lastSeq = null;
       this.flushPending(new Error(`gateway closed (${ev.code}): ${reason}`));
       this.opts.onClose?.({ code: ev.code, reason, error: connectError });
       this.scheduleReconnect();
