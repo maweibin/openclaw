@@ -323,30 +323,40 @@ class SandboxFsBridgeImpl implements SandboxFsBridge {
       );
     }
 
-    const guarded = await openBoundaryFile({
-      absolutePath: target.hostPath,
-      rootPath: lexicalMount.hostRoot,
-      boundaryLabel: "sandbox mount root",
-      aliasPolicy: options.aliasPolicy,
-      allowedType: options.allowedType,
-    });
-    if (!guarded.ok) {
-      if (guarded.reason !== "path") {
-        // Some platforms cannot open directories via openSync(O_RDONLY), even when
-        // the path is a valid in-boundary directory. Allow mkdirp to proceed in that
-        // narrow case by verifying the host path is an existing directory.
-        const canFallbackToDirectoryStat =
-          options.allowedType === "directory" && this.pathIsExistingDirectory(target.hostPath);
-        if (!canFallbackToDirectoryStat) {
-          throw guarded.error instanceof Error
-            ? guarded.error
-            : new Error(
-                `Sandbox boundary checks failed; cannot ${options.action}: ${target.containerPath}`,
-              );
+    // Skip openBoundaryFile for mount root when creating directories: path was already
+    // validated by lexicalMount lookup, and openSync(directory) can fail on some
+    // platforms (e.g. Docker bind mounts). Fixes write-tool boundary failures for /workspace.
+    const isMountRootDirectory =
+      options.allowedType === "directory" &&
+      normalizeContainerPath(target.containerPath) ===
+        normalizeContainerPath(lexicalMount.containerRoot);
+
+    if (!isMountRootDirectory) {
+      const guarded = await openBoundaryFile({
+        absolutePath: target.hostPath,
+        rootPath: lexicalMount.hostRoot,
+        boundaryLabel: "sandbox mount root",
+        aliasPolicy: options.aliasPolicy,
+        allowedType: options.allowedType,
+      });
+      if (!guarded.ok) {
+        if (guarded.reason !== "path") {
+          // Some platforms cannot open directories via openSync(O_RDONLY), even when
+          // the path is a valid in-boundary directory. Allow mkdirp to proceed in that
+          // narrow case by verifying the host path is an existing directory.
+          const canFallbackToDirectoryStat =
+            options.allowedType === "directory" && this.pathIsExistingDirectory(target.hostPath);
+          if (!canFallbackToDirectoryStat) {
+            throw guarded.error instanceof Error
+              ? guarded.error
+              : new Error(
+                  `Sandbox boundary checks failed; cannot ${options.action}: ${target.containerPath}`,
+                );
+          }
         }
+      } else {
+        fs.closeSync(guarded.fd);
       }
-    } else {
-      fs.closeSync(guarded.fd);
     }
 
     const canonicalContainerPath = await this.resolveCanonicalContainerPath({
