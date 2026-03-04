@@ -100,6 +100,13 @@ const resolvePluginSdkTelegramAlias = (): string | null => {
   return resolvePluginSdkAliasFile({ srcFile: "telegram.ts", distFile: "telegram.js" });
 };
 
+const resolvePluginSdkKeyedAsyncQueueAlias = (): string | null => {
+  return resolvePluginSdkAliasFile({
+    srcFile: "keyed-async-queue.ts",
+    distFile: "keyed-async-queue.js",
+  });
+};
+
 export const __testing = {
   resolvePluginSdkAliasFile,
 };
@@ -478,12 +485,16 @@ export function loadOpenClawPlugins(options: PluginLoadOptions = {}): PluginRegi
     const pluginSdkAccountIdAlias = resolvePluginSdkAccountIdAlias();
     const pluginSdkCoreAlias = resolvePluginSdkCoreAlias();
     const pluginSdkTelegramAlias = resolvePluginSdkTelegramAlias();
+    const pluginSdkKeyedAsyncQueueAlias = resolvePluginSdkKeyedAsyncQueueAlias();
     const aliasMap = {
       ...(pluginSdkAlias ? { "openclaw/plugin-sdk": pluginSdkAlias } : {}),
       ...(pluginSdkCoreAlias ? { "openclaw/plugin-sdk/core": pluginSdkCoreAlias } : {}),
       ...(pluginSdkTelegramAlias ? { "openclaw/plugin-sdk/telegram": pluginSdkTelegramAlias } : {}),
       ...(pluginSdkAccountIdAlias
         ? { "openclaw/plugin-sdk/account-id": pluginSdkAccountIdAlias }
+        : {}),
+      ...(pluginSdkKeyedAsyncQueueAlias
+        ? { "openclaw/plugin-sdk/keyed-async-queue": pluginSdkKeyedAsyncQueueAlias }
         : {}),
     };
     jitiLoader = createJiti(import.meta.url, {
