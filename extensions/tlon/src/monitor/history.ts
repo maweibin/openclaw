@@ -27,6 +27,69 @@ export type TlonHistoryEntry = {
   id?: string;
 };
 
+type TlonPostEssay = {
+  author?: string;
+  content?: unknown;
+  sent?: number;
+};
+
+type TlonPostSeal = {
+  id?: string;
+};
+
+type TlonPost = {
+  essay?: TlonPostEssay;
+  seal?: TlonPostSeal;
+  "r-post"?: {
+    set?: {
+      essay?: TlonPostEssay;
+      seal?: TlonPostSeal;
+    };
+  };
+};
+
+type TlonPostMap = Record<string, TlonPost>;
+
+type TlonChannelHistoryResponse =
+  | TlonPost[]
+  | {
+      posts?: TlonPostMap;
+    }
+  | TlonPostMap;
+
+type TlonReplyMemo = {
+  author?: string;
+  content?: unknown;
+  sent?: number;
+};
+
+type TlonReplySeal = {
+  id?: string;
+};
+
+type TlonReply = {
+  memo?: TlonReplyMemo;
+  seal?: TlonReplySeal;
+  "r-reply"?: {
+    set?: {
+      memo?: TlonReplyMemo;
+      seal?: TlonReplySeal;
+    };
+  };
+  id?: string;
+};
+
+type TlonReplyMap = Record<string, TlonReply>;
+
+type TlonThreadHistoryResponse =
+  | TlonReply[]
+  | {
+      replies?: TlonReply[] | TlonReplyMap;
+    }
+  | TlonReplyMap;
+
+type TlonPostLike = TlonPost | TlonReply;
+
 const messageCache = new Map<string, TlonHistoryEntry[]>();
 const MAX_CACHED_MESSAGES = 100;
 
@@ -42,6 +105,104 @@ export function cacheMessage(channelNest: string, message: TlonHistoryEntry) {
   if (cache.length > MAX_CACHED_MESSAGES) {
     cache.pop();
   }
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isTlonPostLike(value: unknown): value is TlonPostLike {
+  if (!isObject(value)) {
+    return false;
+  }
+
+  const maybeEssay = (value as TlonPost).essay;
+  const maybeMemo = (value as TlonReply).memo;
+
+  if (!maybeEssay && !maybeMemo && !("r-post" in value) && !("r-reply" in value)) {
+    return false;
+  }
+
+  return true;
+}
+
+function normalizeChannelHistoryResponse(data: unknown, runtime?: RuntimeEnv): TlonPost[] {
+  if (!data) {
+    return [];
+  }
+
+  const narrowed = data as TlonChannelHistoryResponse;
+
+  if (Array.isArray(narrowed)) {
+    return narrowed.filter(isTlonPostLike) as TlonPost[];
+  }
+
+  if (isObject(narrowed) && narrowed.posts && isObject(narrowed.posts)) {
+    return Object.values(narrowed.posts).filter(isTlonPostLike) as TlonPost[];
+  }
+
+  if (isObject(narrowed)) {
+    return Object.values(narrowed).filter(isTlonPostLike) as TlonPost[];
+  }
+
+  runtime?.log?.("[tlon] Unexpected channel history response shape, ignoring");
+  return [];
+}
+
+function extractHistoryEntryFromPost(post: TlonPost): TlonHistoryEntry {
+  const essay = post.essay ?? post["r-post"]?.set?.essay ?? {};
+  const seal = post.seal ?? post["r-post"]?.set?.seal ?? {};
+
+  const contentBlocks = Array.isArray(essay.content) ? essay.content : [];
+
+  return {
+    author: essay.author ?? "unknown",
+    content: extractMessageText(contentBlocks),
+    timestamp: essay.sent ?? Date.now(),
+    id: seal.id,
+  };
+}
+
+function normalizeThreadHistoryResponse(data: unknown, runtime?: RuntimeEnv): TlonReply[] {
+  if (!data) {
+    return [];
+  }
+
+  const narrowed = data as TlonThreadHistoryResponse;
+
+  if (Array.isArray(narrowed)) {
+    return narrowed.filter(isTlonPostLike) as TlonReply[];
+  }
+
+  if (isObject(narrowed) && narrowed.replies) {
+    const replies = Array.isArray(narrowed.replies)
+      ? narrowed.replies
+      : isObject(narrowed.replies)
+        ? Object.values(narrowed.replies)
+        : [];
+    return replies.filter(isTlonPostLike) as TlonReply[];
+  }
+
+  if (isObject(narrowed)) {
+    return Object.values(narrowed).filter(isTlonPostLike) as TlonReply[];
+  }
+
+  runtime?.log?.("[tlon] Unexpected thread history response shape, ignoring");
+  return [];
+}
+
+function extractHistoryEntryFromReply(reply: TlonReply): TlonHistoryEntry {
+  const memo = reply.memo ?? reply["r-reply"]?.set?.memo ?? {};
+  const seal = reply.seal ?? reply["r-reply"]?.set?.seal ?? {};
+
+  const contentBlocks = Array.isArray(memo.content) ? memo.content : [];
+
+  return {
+    author: memo.author ?? "unknown",
+    content: extractMessageText(contentBlocks),
+    timestamp: memo.sent ?? Date.now(),
+    id: seal.id ?? reply.id,
+  };
 }
 
 export async function fetchChannelHistory(
