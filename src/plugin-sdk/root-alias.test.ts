@@ -27,7 +27,8 @@ describe("plugin-sdk root alias", () => {
     expect(parsed.success).toBe(false);
   });
 
-  it("loads legacy root exports lazily through the proxy", () => {
+  // First access triggers jiti load of the full plugin-sdk; can exceed default timeout in CI.
+  it("loads legacy root exports lazily through the proxy", { timeout: 180_000 }, () => {
     expect(typeof rootSdk.resolveControlCommandGate).toBe("function");
     expect(typeof rootSdk.default).toBe("object");
     expect(rootSdk.default).toBe(rootSdk);
