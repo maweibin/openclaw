@@ -11,6 +11,7 @@ import { shortenHomePath } from "../utils.js";
 async function readConfigFileRaw(configPath: string): Promise<{
   exists: boolean;
   parsed: OpenClawConfig;
+  parseError?: boolean;
 }> {
   try {
     const raw = await fs.readFile(configPath, "utf-8");
@@ -19,8 +20,12 @@ async function readConfigFileRaw(configPath: string): Promise<{
       return { exists: true, parsed: parsed as OpenClawConfig };
     }
     return { exists: true, parsed: {} };
-  } catch {
-    return { exists: false, parsed: {} };
+  } catch (err) {
+    const code = (err as { code?: string } | null)?.code;
+    if (code === "ENOENT") {
+      return { exists: false, parsed: {} };
+    }
+    return { exists: true, parsed: {}, parseError: true };
   }
 }
 
@@ -36,6 +41,13 @@ export async function setupCommand(
   const io = createConfigIO();
   const configPath = io.configPath;
   const existingRaw = await readConfigFileRaw(configPath);
+
+  if (existingRaw.parseError) {
+    throw new Error(
+      `Config file exists but is not valid JSON: ${formatConfigPath(configPath)}. Fix the file before running setup.`,
+    );
+  }
+
   const cfg = existingRaw.parsed;
   const defaults = cfg.agents?.defaults ?? {};
 
