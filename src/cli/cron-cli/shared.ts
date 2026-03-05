@@ -7,6 +7,12 @@ import { defaultRuntime } from "../../runtime.js";
 import { colorize, isRich, theme } from "../../terminal/theme.js";
 import type { GatewayRpcOpts } from "../gateway-rpc.js";
 import { callGatewayFromCli } from "../gateway-rpc.js";
+import {
+  type DurationMsParseOptions,
+  parseDurationMs as parseDurationMsCentral,
+} from "../parse-duration.js";
+
+export { parseDurationMs } from "../parse-duration.js";
 
 export const getCronChannelOptions = () =>
   ["last", ...listChannelPlugins().map((plugin) => plugin.id)].join("|");
@@ -35,31 +41,20 @@ export async function warnIfCronSchedulerDisabled(opts: GatewayRpcOpts) {
   }
 }
 
-export function parseDurationMs(input: string): number | null {
+/** Parses a duration string; returns null on empty or invalid (does not throw). */
+export function parseDurationMsOptional(
+  input: string,
+  opts?: DurationMsParseOptions,
+): number | null {
   const raw = input.trim();
   if (!raw) {
     return null;
   }
-  const match = raw.match(/^(\d+(?:\.\d+)?)(ms|s|m|h|d)$/i);
-  if (!match) {
+  try {
+    return parseDurationMsCentral(raw, opts);
+  } catch {
     return null;
   }
-  const n = Number.parseFloat(match[1] ?? "");
-  if (!Number.isFinite(n) || n <= 0) {
-    return null;
-  }
-  const unit = (match[2] ?? "").toLowerCase();
-  const factor =
-    unit === "ms"
-      ? 1
-      : unit === "s"
-        ? 1000
-        : unit === "m"
-          ? 60_000
-          : unit === "h"
-            ? 3_600_000
-            : 86_400_000;
-  return Math.floor(n * factor);
 }
 
 export function parseCronStaggerMs(params: {
@@ -72,11 +67,11 @@ export function parseCronStaggerMs(params: {
   if (!params.staggerRaw) {
     return undefined;
   }
-  const parsed = parseDurationMs(params.staggerRaw);
-  if (!parsed) {
+  try {
+    return parseDurationMsCentral(params.staggerRaw, { defaultUnit: "s" });
+  } catch {
     throw new Error("Invalid --stagger; use e.g. 30s, 1m, 5m");
   }
-  return parsed;
 }
 
 export function parseAt(input: string): string | null {
@@ -88,7 +83,7 @@ export function parseAt(input: string): string | null {
   if (absolute !== null) {
     return new Date(absolute).toISOString();
   }
-  const dur = parseDurationMs(raw);
+  const dur = parseDurationMsOptional(raw);
   if (dur !== null) {
     return new Date(Date.now() + dur).toISOString();
   }

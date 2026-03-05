@@ -128,7 +128,7 @@ expressions such as `0 7 * * *` remain exact.
 For any cron schedule, you can set an explicit stagger window with `schedule.staggerMs`
 (`0` keeps exact timing). CLI shortcuts:
 
-- `--stagger 30s` (or `1m`, `5m`) to set an explicit stagger window.
+- `--stagger 30s` (or `1m`, `5m`) to set an explicit stagger window. Duration format: units `ms`/`s`/`m`/`h`/`d`, or composites like `1h30m`.
 - `--exact` to force `staggerMs = 0`.
 
 ### Main vs isolated execution
