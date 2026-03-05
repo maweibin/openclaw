@@ -115,9 +115,8 @@ Both resolve from process env at activation time. SecretRef details are document
 Verbose output can be enabled in two ways:
 
 - **Command line:** the global option `--verbose` (or `--debug` where supported) turns on verbose for that run.
-**Precedence:** the command line wins. If you pass `--verbose` or `--debug`, that determines the result. Only when neither flag is present does the CLI check `OPENCLAW_VERBOSE`. So you can set the env var for default verbose behavior and still override it per run with `OPENCLAW_VERBOSE=0 openclaw …` when you want non-verbose.
 
-**Precedence:** the command line wins. If you pass `--verbose` or `--debug`, that determines the result. Only when neither flag is present does the CLI check `OPENCLAW_VERBOSE`. So you can set the env var for default behavior and still override per run with `--verbose` or by omitting the flag when you want non-verbose.
+- **Precedence:** the command line wins. If you pass `--verbose` or `--debug`, that determines the result. Only when neither flag is present does the CLI check `OPENCLAW_VERBOSE`. So you can set the env var for default behavior and still override per run with `--verbose` or by omitting the flag when you want non-verbose.
 
 ### `OPENCLAW_HOME`
 
