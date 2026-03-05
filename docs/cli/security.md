@@ -55,6 +55,16 @@ If `--fix` and `--json` are combined, output includes both fix actions and final
 openclaw security audit --fix --json | jq '{fix: .fix.ok, summary: .report.summary}'
 ```
 
+## Fix output (with `--fix`)
+
+When you run `openclaw security audit --fix` without `--json`, the fix result is grouped into:
+
+- **Config changes** — config keys that were updated (e.g. `logging.redactSensitive`, group policy)
+- **Permissions** — state dir, config file, and credential/session file permission updates (chmod or icacls)
+- **Needs manual review** — any errors (e.g. config write or permission failure) that require you to fix manually
+
+Use this summary to see what was applied and what still needs attention.
+
 ## What `--fix` changes
 
 `--fix` applies safe, deterministic remediations:

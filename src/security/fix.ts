@@ -475,3 +475,84 @@ export async function fixSecurityFootguns(opts?: {
     errors,
   };
 }
+
+export type FormatSecurityFixResultOptions = {
+  shortenPath: (p: string) => string;
+  shortenInString: (s: string) => string;
+};
+
+/**
+ * Format a SecurityFixResult into human-readable lines grouped by category:
+ * Config changes, Permissions, and Needs manual review (errors).
+ * Use from CLI or doctor to present fix output consistently.
+ */
+export function formatSecurityFixResult(
+  result: SecurityFixResult,
+  opts: FormatSecurityFixResultOptions,
+): string[] {
+  const lines: string[] = [];
+  const { stateDir, configPath } = result;
+
+  if (result.changes.length > 0) {
+    lines.push("Config changes");
+    for (const c of result.changes) {
+      lines.push(`  ${opts.shortenInString(c)}`);
+    }
+  }
+
+  const permLabel = (action: SecurityFixAction): string => {
+    if (action.kind === "chmod") {
+      const mode = action.mode.toString(8).padStart(3, "0");
+      const pathNorm = action.path.replace(/\/+$/, "");
+      if (stateDir && pathNorm === stateDir.replace(/\/+$/, "")) {
+        return `state dir (${mode})`;
+      }
+      if (configPath && pathNorm === configPath.replace(/\/+$/, "")) {
+        return `config file (${mode})`;
+      }
+      return mode;
+    }
+    return "";
+  };
+
+  const hasPermOutput = result.actions.some(
+    (a) => a.ok || a.skipped !== undefined || a.error !== undefined,
+  );
+  if (hasPermOutput) {
+    lines.push("Permissions");
+    for (const action of result.actions) {
+      if (action.kind === "chmod") {
+        const mode = action.mode.toString(8).padStart(3, "0");
+        const label = permLabel(action);
+        const suffix = label !== mode ? ` ${label}` : "";
+        if (action.ok) {
+          lines.push(`  chmod ${mode}${suffix} ${opts.shortenPath(action.path)}`);
+        } else if (action.skipped) {
+          lines.push(
+            `  skip chmod ${mode} ${opts.shortenPath(action.path)} (${action.skipped})`,
+          );
+        } else if (action.error) {
+          lines.push(`  chmod ${mode} ${opts.shortenPath(action.path)} failed: ${action.error}`);
+        }
+        continue;
+      }
+      const command = opts.shortenInString(action.command);
+      if (action.ok) {
+        lines.push(`  ${command}`);
+      } else if (action.skipped) {
+        lines.push(`  skip ${command} (${action.skipped})`);
+      } else if (action.error) {
+        lines.push(`  ${command} failed: ${action.error}`);
+      }
+    }
+  }
+
+  if (result.errors.length > 0) {
+    lines.push("Needs manual review");
+    for (const err of result.errors) {
+      lines.push(`  ${opts.shortenInString(err)}`);
+    }
+  }
+
+  return lines;
+}

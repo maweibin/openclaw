@@ -2,7 +2,8 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { fixSecurityFootguns } from "./fix.js";
+import { fixSecurityFootguns, formatSecurityFixResult } from "./fix.js";
+import type { SecurityFixResult } from "./fix.js";
 
 const isWindows = process.platform === "win32";
 
@@ -254,5 +255,49 @@ describe("security fix", () => {
     expectPerms((await fs.stat(sessionsStorePath)).mode & 0o777, 0o600);
     expectPerms((await fs.stat(transcriptPath)).mode & 0o777, 0o600);
     expectPerms((await fs.stat(includePath)).mode & 0o777, 0o600);
+  });
+});
+
+describe("formatSecurityFixResult", () => {
+  const id = (s: string) => s;
+  const opts = { shortenPath: id, shortenInString: id };
+
+  it("groups config changes, permissions, and errors", () => {
+    const result: SecurityFixResult = {
+      ok: false,
+      stateDir: "/home/u/.openclaw",
+      configPath: "/home/u/.openclaw/openclaw.json",
+      configWritten: true,
+      changes: ["logging.redactSensitive=off -> \"tools\""],
+      actions: [
+        { kind: "chmod", path: "/home/u/.openclaw", mode: 0o700, ok: true },
+        { kind: "chmod", path: "/home/u/.openclaw/openclaw.json", mode: 0o600, ok: true },
+      ],
+      errors: ["writeConfigFile failed: EACCES"],
+    };
+    const lines = formatSecurityFixResult(result, opts);
+    expect(lines).toContain("Config changes");
+    expect(lines.some((l) => l.includes("logging.redactSensitive"))).toBe(true);
+    expect(lines).toContain("Permissions");
+    expect(lines.some((l) => l.includes("state dir (700)"))).toBe(true);
+    expect(lines.some((l) => l.includes("config file (600)"))).toBe(true);
+    expect(lines).toContain("Needs manual review");
+    expect(lines.some((l) => l.includes("writeConfigFile failed"))).toBe(true);
+  });
+
+  it("omits sections when empty", () => {
+    const result: SecurityFixResult = {
+      ok: true,
+      stateDir: "/s",
+      configPath: "/s/c.json",
+      configWritten: false,
+      changes: [],
+      actions: [{ kind: "chmod", path: "/s", mode: 0o700, ok: false, skipped: "already" }],
+      errors: [],
+    };
+    const lines = formatSecurityFixResult(result, opts);
+    expect(lines).not.toContain("Config changes");
+    expect(lines).toContain("Permissions");
+    expect(lines).not.toContain("Needs manual review");
   });
 });
