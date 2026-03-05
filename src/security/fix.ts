@@ -529,10 +529,12 @@ export function formatSecurityFixResult(
           lines.push(`  chmod ${mode}${suffix} ${opts.shortenPath(action.path)}`);
         } else if (action.skipped) {
           lines.push(
-            `  skip chmod ${mode} ${opts.shortenPath(action.path)} (${action.skipped})`,
+            `  skip chmod ${mode}${suffix} ${opts.shortenPath(action.path)} (${action.skipped})`,
           );
         } else if (action.error) {
-          lines.push(`  chmod ${mode} ${opts.shortenPath(action.path)} failed: ${action.error}`);
+          lines.push(
+            `  chmod ${mode}${suffix} ${opts.shortenPath(action.path)} failed: ${action.error}`,
+          );
         }
         continue;
       }
