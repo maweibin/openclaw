@@ -19,6 +19,7 @@ import type {
   PluginHookBeforePromptBuildResult,
 } from "../../../plugins/types.js";
 import { isSubagentSessionKey } from "../../../routing/session-key.js";
+import { joinPresentTextSegments } from "../../../shared/text/join-segments.js";
 import { resolveSignalReactionLevel } from "../../../signal/reaction-level.js";
 import { resolveTelegramInlineButtonsScope } from "../../../telegram/inline-buttons.js";
 import { resolveTelegramReactionLevel } from "../../../telegram/reaction-level.js";
@@ -567,18 +568,18 @@ export async function resolvePromptBuildHookResult(params: {
       : undefined);
   return {
     systemPrompt: promptBuildResult?.systemPrompt ?? legacyResult?.systemPrompt,
-    prependContext: [promptBuildResult?.prependContext, legacyResult?.prependContext]
-      .filter((value): value is string => Boolean(value))
-      .join("\n\n"),
-    prependSystemContext: [
+    prependContext: joinPresentTextSegments([
+      promptBuildResult?.prependContext,
+      legacyResult?.prependContext,
+    ]),
+    prependSystemContext: joinPresentTextSegments([
       promptBuildResult?.prependSystemContext,
       legacyResult?.prependSystemContext,
-    ]
-      .filter((value): value is string => Boolean(value))
-      .join("\n\n"),
-    appendSystemContext: [promptBuildResult?.appendSystemContext, legacyResult?.appendSystemContext]
-      .filter((value): value is string => Boolean(value))
-      .join("\n\n"),
+    ]),
+    appendSystemContext: joinPresentTextSegments([
+      promptBuildResult?.appendSystemContext,
+      legacyResult?.appendSystemContext,
+    ]),
   };
 }
 
@@ -589,13 +590,13 @@ export function composeSystemPromptWithHookContext(params: {
 }): string | undefined {
   const prependSystem = params.prependSystemContext?.trim();
   const appendSystem = params.appendSystemContext?.trim();
-  const baseSystem = params.baseSystemPrompt?.trim() ?? "";
   if (!prependSystem && !appendSystem) {
     return undefined;
   }
-  return [prependSystem, baseSystem, appendSystem]
-    .filter((value): value is string => Boolean(value))
-    .join("\n\n");
+  return joinPresentTextSegments(
+    [params.prependSystemContext, params.baseSystemPrompt, params.appendSystemContext],
+    { trim: true },
+  );
 }
 
 export function resolvePromptModeForSession(sessionKey?: string): "minimal" | "full" {
