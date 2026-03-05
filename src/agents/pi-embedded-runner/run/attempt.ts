@@ -570,6 +570,15 @@ export async function resolvePromptBuildHookResult(params: {
     prependContext: [promptBuildResult?.prependContext, legacyResult?.prependContext]
       .filter((value): value is string => Boolean(value))
       .join("\n\n"),
+    prependSystemContext: [
+      promptBuildResult?.prependSystemContext,
+      legacyResult?.prependSystemContext,
+    ]
+      .filter((value): value is string => Boolean(value))
+      .join("\n\n"),
+    appendSystemContext: [promptBuildResult?.appendSystemContext, legacyResult?.appendSystemContext]
+      .filter((value): value is string => Boolean(value))
+      .join("\n\n"),
   };
 }
 
@@ -1521,6 +1530,22 @@ export async function runEmbeddedAttempt(
             applySystemPromptOverrideToSession(activeSession, legacySystemPrompt);
             systemPromptText = legacySystemPrompt;
             log.debug(`hooks: applied systemPrompt override (${legacySystemPrompt.length} chars)`);
+          }
+          const prependSystem = hookResult?.prependSystemContext?.trim();
+          const appendSystem = hookResult?.appendSystemContext?.trim();
+          if (prependSystem || appendSystem) {
+            let base = systemPromptText ?? "";
+            if (prependSystem) {
+              base = `${prependSystem}\n\n${base}`;
+            }
+            if (appendSystem) {
+              base = `${base}\n\n${appendSystem}`;
+            }
+            applySystemPromptOverrideToSession(activeSession, base);
+            systemPromptText = base;
+            log.debug(
+              `hooks: applied prependSystemContext/appendSystemContext (${prependSystem?.length ?? 0}+${appendSystem?.length ?? 0} chars)`,
+            );
           }
         }
 

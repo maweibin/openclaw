@@ -54,6 +54,8 @@ describe("resolvePromptBuildHookResult", () => {
     expect(result).toEqual({
       prependContext: "from-cache",
       systemPrompt: "legacy-system",
+      prependSystemContext: "",
+      appendSystemContext: "",
     });
   });
 
