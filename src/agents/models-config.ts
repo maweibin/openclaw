@@ -158,11 +158,19 @@ function mergeWithExistingProviderSecrets(params: {
       mergedProviders[key] = newEntry;
       continue;
     }
+    // Only preserve agent apiKey/baseUrl when config does not provide a non-empty value,
+    // so that updating openclaw.json and restarting takes effect (fixes #37309).
     const preserved: Record<string, unknown> = {};
-    if (typeof existing.apiKey === "string" && existing.apiKey) {
+    const configHasApiKey =
+      typeof (newEntry as { apiKey?: string }).apiKey === "string" &&
+      (newEntry as { apiKey?: string }).apiKey !== "";
+    const configHasBaseUrl =
+      typeof (newEntry as { baseUrl?: string }).baseUrl === "string" &&
+      (newEntry as { baseUrl?: string }).baseUrl !== "";
+    if (typeof existing.apiKey === "string" && existing.apiKey && !configHasApiKey) {
       preserved.apiKey = existing.apiKey;
     }
-    if (typeof existing.baseUrl === "string" && existing.baseUrl) {
+    if (typeof existing.baseUrl === "string" && existing.baseUrl && !configHasBaseUrl) {
       preserved.baseUrl = existing.baseUrl;
     }
     mergedProviders[key] = { ...newEntry, ...preserved };
