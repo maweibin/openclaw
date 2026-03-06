@@ -32,6 +32,10 @@ import { resolveOpenClawAgentDir } from "../../agent-paths.js";
 import { resolveSessionAgentIds } from "../../agent-scope.js";
 import { createAnthropicPayloadLogger } from "../../anthropic-payload-log.js";
 import {
+  isCustomAnthropicBaseUrl,
+  runWithAnthropicSSEEventInject,
+} from "../../anthropic-sse-event-inject.js";
+import {
   analyzeBootstrapBudget,
   buildBootstrapPromptWarning,
   buildBootstrapTruncationReportMeta,
@@ -1167,8 +1171,17 @@ export async function runEmbeddedAttempt(
           activeSession.agent.streamFn = streamSimple;
         }
       } else {
-        // Force a stable streamFn reference so vitest can reliably mock @mariozechner/pi-ai.
-        activeSession.agent.streamFn = streamSimple;
+        // anthropic-messages with custom baseUrl (proxy): inject SSE event lines so SDK gets events (#37571).
+        if (
+          params.model.api === "anthropic-messages" &&
+          isCustomAnthropicBaseUrl(params.model.baseUrl)
+        ) {
+          const baseUrl = params.model.baseUrl;
+          activeSession.agent.streamFn = (model, context, options) =>
+            runWithAnthropicSSEEventInject(baseUrl, () => streamSimple(model, context, options));
+        } else {
+          activeSession.agent.streamFn = streamSimple;
+        }
       }
 
       // Ollama with OpenAI-compatible API needs num_ctx in payload.options.

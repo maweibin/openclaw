@@ -228,4 +228,10 @@ openclaw onboard --auth-choice setup-token
 - Check `openclaw models status --json` for `auth.unusableProfiles`.
 - Add another Anthropic profile or wait for cooldown.
 
+**"request ended without sending any chunks" with custom baseUrl (proxy)**
+
+- Some proxies return only SSE `data:` lines and omit `event:` lines; the Anthropic SDK then drops events and the run fails.
+- When you use `api: "anthropic-messages"` with a custom `baseUrl` (not `https://api.anthropic.com`), OpenClaw automatically injects missing `event:` lines from the `data` payload so the stream works.
+- If you still see this error, ensure your model config uses `anthropic-messages` and a custom `baseUrl`, or try `api: "openai-completions"` with an OpenAI-compatible proxy.
+
 More: [/gateway/troubleshooting](/gateway/troubleshooting) and [/help/faq](/help/faq).
