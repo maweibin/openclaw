@@ -360,7 +360,7 @@ async function resolveGatewayCredentialsWithEnv(
       explicitAuth: context.explicitAuth,
       urlOverride: context.urlOverride,
       urlOverrideSource: context.urlOverrideSource,
-      remotePasswordPrecedence: "env-first",
+      remotePasswordPrecedence: "env-first", // pragma: allowlist secret
     });
   }
 
@@ -489,7 +489,7 @@ async function resolveGatewayCredentialsWithEnv(
     explicitAuth: context.explicitAuth,
     urlOverride: context.urlOverride,
     urlOverrideSource: context.urlOverrideSource,
-    remotePasswordPrecedence: "env-first",
+    remotePasswordPrecedence: "env-first", // pragma: allowlist secret
   });
 }
 
