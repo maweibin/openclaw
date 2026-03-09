@@ -40,6 +40,7 @@ import {
 } from "./bot/helpers.js";
 import type { TelegramContext } from "./bot/types.js";
 import { isTelegramForumServiceMessage } from "./forum-service-message.js";
+import { persistGroupHistoryMedia } from "./group-history-media.js";
 
 export type TelegramInboundBodyResult = {
   bodyText: string;
@@ -254,6 +255,17 @@ export async function resolveTelegramInboundBody(params: {
   const effectiveWasMentioned = mentionGate.effectiveWasMentioned;
   if (isGroup && requireMention && canDetectMention && mentionGate.shouldSkip) {
     logger.info({ chatId, reason: "no-mention" }, "skipping group message");
+    const messageIdStr = typeof msg.message_id === "number" ? String(msg.message_id) : undefined;
+    const persisted =
+      historyKey && messageIdStr && allMedia.length > 0
+        ? await persistGroupHistoryMedia({
+            cfg,
+            agentId: routeAgentId,
+            historyKey,
+            messageId: messageIdStr,
+            allMedia,
+          })
+        : undefined;
     recordPendingHistoryEntryIfEnabled({
       historyMap: groupHistories,
       historyKey: historyKey ?? "",
@@ -263,7 +275,9 @@ export async function resolveTelegramInboundBody(params: {
             sender: buildSenderLabel(msg, senderId || chatId),
             body: rawBody,
             timestamp: msg.date ? msg.date * 1000 : undefined,
-            messageId: typeof msg.message_id === "number" ? String(msg.message_id) : undefined,
+            messageId: messageIdStr,
+            mediaPaths: persisted && persisted.paths.length > 0 ? persisted.paths : undefined,
+            mediaTypes: persisted && persisted.types.length > 0 ? persisted.types : undefined,
           }
         : null,
     });

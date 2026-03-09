@@ -32,6 +32,10 @@ export type HistoryEntry = {
   body: string;
   timestamp?: number;
   messageId?: string;
+  /** Persisted paths for media in this entry (e.g. Telegram group history images). */
+  mediaPaths?: string[];
+  /** Content types for mediaPaths (parallel to mediaPaths). */
+  mediaTypes?: string[];
 };
 
 export function buildHistoryContext(params: {
