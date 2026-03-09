@@ -68,3 +68,50 @@ export async function persistGroupHistoryMedia(params: {
   }
   return { paths, types };
 }
+
+/** Entry shape with optional media paths (for eviction cleanup). */
+type EntryWithMedia = { mediaPaths?: string[] };
+
+/**
+ * Deletes persisted media files for an evicted history entry. Safe to call with
+ * missing paths (ignores ENOENT). Fire-and-forget; do not await in hot path.
+ */
+export function deleteGroupHistoryMediaForEntry(entry: EntryWithMedia): void {
+  const paths = entry.mediaPaths;
+  if (!Array.isArray(paths) || paths.length === 0) {
+    return;
+  }
+  void Promise.all(
+    paths.map((p) =>
+      fs.unlink(p).catch((err: NodeJS.ErrnoException) => {
+        if (err?.code !== "ENOENT") {
+          logVerbose(`telegram: failed to delete group history media ${p}: ${err?.message ?? err}`);
+        }
+      }),
+    ),
+  );
+}
+
+/**
+ * Deletes the entire cache subdir for a history key (e.g. when the key is evicted).
+ * Safe to call if the dir is already gone. Fire-and-forget; do not await in hot path.
+ */
+export function deleteGroupHistoryCacheForKey(params: {
+  cfg: OpenClawConfig;
+  agentId?: string;
+  historyKey: string;
+}): void {
+  const storePath = resolveStorePath(params.cfg.session?.store, { agentId: params.agentId });
+  const cacheDir = path.join(
+    path.dirname(storePath),
+    CACHE_SUBDIR,
+    sanitizeHistoryKey(params.historyKey),
+  );
+  void fs.rm(cacheDir, { recursive: true, force: true }).catch((err: NodeJS.ErrnoException) => {
+    if (err?.code !== "ENOENT") {
+      logVerbose(
+        `telegram: failed to delete group history cache dir ${cacheDir}: ${err?.message ?? err}`,
+      );
+    }
+  });
+}

@@ -40,7 +40,11 @@ import {
 } from "./bot/helpers.js";
 import type { TelegramContext } from "./bot/types.js";
 import { isTelegramForumServiceMessage } from "./forum-service-message.js";
-import { persistGroupHistoryMedia } from "./group-history-media.js";
+import {
+  deleteGroupHistoryCacheForKey,
+  deleteGroupHistoryMediaForEntry,
+  persistGroupHistoryMedia,
+} from "./group-history-media.js";
 
 export type TelegramInboundBodyResult = {
   bodyText: string;
@@ -280,6 +284,9 @@ export async function resolveTelegramInboundBody(params: {
             mediaTypes: persisted && persisted.types.length > 0 ? persisted.types : undefined,
           }
         : null,
+      onEvictEntry: (evicted) => deleteGroupHistoryMediaForEntry(evicted),
+      onEvictKey: (key) =>
+        deleteGroupHistoryCacheForKey({ cfg, agentId: routeAgentId, historyKey: key }),
     });
     return null;
   }
