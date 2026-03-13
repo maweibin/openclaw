@@ -490,7 +490,7 @@ describe("resolveModel", () => {
           },
         },
       },
-    } as OpenClawConfig;
+    } as unknown as OpenClawConfig;
 
     const resultWithBaseUrl = resolveModel("ollama", "qwen3.5:9b", "/tmp/agent", cfgWithBaseUrl);
 
@@ -508,7 +508,7 @@ describe("resolveModel", () => {
           },
         },
       },
-    } as OpenClawConfig;
+    } as unknown as OpenClawConfig;
 
     const resultMinimal = resolveModel("ollama", "qwen3.5:9b", "/tmp/agent", cfgMinimal);
 
