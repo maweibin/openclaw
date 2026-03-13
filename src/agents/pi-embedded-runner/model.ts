@@ -25,6 +25,7 @@ type InlineProviderConfig = {
   api?: ModelDefinitionConfig["api"];
   models?: ModelDefinitionConfig[];
   headers?: unknown;
+  contextWindow?: number;
 };
 
 function sanitizeModelHeaders(
@@ -110,7 +111,10 @@ function applyConfiguredProviderOverrides(params: {
     reasoning: configuredModel?.reasoning ?? discoveredModel.reasoning,
     input: normalizedInput,
     cost: configuredModel?.cost ?? discoveredModel.cost,
-    contextWindow: configuredModel?.contextWindow ?? discoveredModel.contextWindow,
+    contextWindow:
+      configuredModel?.contextWindow ??
+      providerConfig.contextWindow ??
+      discoveredModel.contextWindow,
     maxTokens: configuredModel?.maxTokens ?? discoveredModel.maxTokens,
     headers:
       discoveredHeaders || providerHeaders || configuredHeaders
@@ -246,6 +250,7 @@ export function resolveModelWithRegistry(params: {
         cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
         contextWindow:
           configuredModel?.contextWindow ??
+          providerConfig?.contextWindow ??
           providerConfig?.models?.[0]?.contextWindow ??
           DEFAULT_CONTEXT_TOKENS,
         maxTokens:
