@@ -722,16 +722,33 @@ async function runEmbeddedAgentInternal(
       });
       return withAgentRunLifecycleGeneration(lifecycleGeneration, task);
     };
-    if (params.enqueue) {
-      return params.enqueue(taskWithCurrentLifecycle, withLaneTimeout(withRunLaneWait(globalOpts)));
-    }
-    noteLaneWaitIfBusy(globalLane);
-    return enqueueCommandInLane(
-      globalLane,
-      taskWithCurrentLifecycle,
-      withLaneTimeout(withRunLaneWait(globalOpts)),
-    );
+    const enqueueWithHeartbeat = async () => {
+      let heartbeatInterval: ReturnType<typeof setInterval> | undefined;
+      try {
+        // Start heartbeat to keep lane task alive during long-running operations
+        heartbeatInterval = setInterval(() => {
+          noteLaneTaskProgress();
+        }, LANE_TASK_HEARTBEAT_MS);
+        if (params.enqueue) {
+          return await params.enqueue(taskWithCurrentLifecycle, withLaneTimeout(withRunLaneWait(globalOpts)));
+        }
+        noteLaneWaitIfBusy(globalLane);
+        return await enqueueCommandInLane(
+          globalLane,
+          taskWithCurrentLifecycle,
+          withLaneTimeout(withRunLaneWait(globalOpts)),
+        );
+      } finally {
+        if (heartbeatInterval) {
+          clearInterval(heartbeatInterval);
+        }
+      }
+    };
+    return enqueueWithHeartbeat();
   };
+
+  // Heartbeat interval constant for lane task timeout progress
+  const LANE_TASK_HEARTBEAT_MS = 30000;
   const enqueueSession = <T>(task: () => Promise<T>, opts?: CommandQueueEnqueueOptions) => {
     const sessionOpts: CommandQueueEnqueueOptions = { ...opts, priority: sessionQueuePriority };
     const taskWithLaneAdmission = () => {
