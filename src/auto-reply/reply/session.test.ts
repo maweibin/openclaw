@@ -4366,6 +4366,53 @@ describe("persistSessionUsageUpdate", () => {
     });
   });
 
+  it("persists cliSessionBinding on heartbeat runs while preserving display model fields (#98895)", async () => {
+    const storePath = await createStorePath("openclaw-usage-heartbeat-");
+    const sessionKey = "main";
+    await seedSessionStore({
+      storePath,
+      sessionKey,
+      entry: {
+        sessionId: "s1",
+        updatedAt: 1,
+        modelProvider: "anthropic",
+        model: "claude-opus-4-8",
+        contextTokens: 500_000,
+        cliSessionBindings: {
+          "claude-cli": { sessionId: "pre-heartbeat-binding" },
+        },
+        cliSessionIds: {
+          "claude-cli": "pre-heartbeat-binding",
+        },
+        claudeCliSessionId: "pre-heartbeat-binding",
+      },
+    });
+
+    await persistSessionUsageUpdate({
+      storePath,
+      sessionKey,
+      isHeartbeat: true,
+      providerUsed: "claude-cli",
+      modelUsed: "claude-sonnet-4-6",
+      usage: { input: 200, output: 100, total: 300 },
+      lastCallUsage: { input: 180, output: 100, total: 280 },
+      contextTokensUsed: 480_000,
+      cliSessionBinding: { sessionId: "heartbeat-binding" },
+    });
+
+    const stored = JSON.parse(await fs.readFile(storePath, "utf-8"));
+    expect(stored[sessionKey]).toMatchObject({
+      // Display model fields preserved (heartbeat keeps user-facing state)
+      modelProvider: "anthropic",
+      model: "claude-opus-4-8",
+      // CLI binding updated (heartbeat persisted the new binding)
+      claudeCliSessionId: "heartbeat-binding",
+      cliSessionIds: {
+        "claude-cli": "heartbeat-binding",
+      },
+    });
+  });
+
   it("accounts goal usage when fresh token snapshots are persisted", async () => {
     const storePath = await createStorePath("openclaw-usage-goal-");
     const sessionKey = "main";
