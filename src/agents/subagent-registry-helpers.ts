@@ -76,7 +76,9 @@ export function resolveAnnounceRetryDelayMs(retryCount: number) {
 
 function formatAnnounceGiveUpLogField(value: string): string {
   const normalized = value.replace(/\s+/g, " ").trim();
-  return JSON.stringify(normalized.length > 2_000 ? `${normalized.slice(0, 2_000)}…` : normalized);
+  return JSON.stringify(
+    normalized.length > 2_000 ? `${truncateUtf16Safe(normalized, 2_000)}…` : normalized,
+  );
 }
 
 /** Logs a sanitized final give-up line for failed subagent announce delivery. */
